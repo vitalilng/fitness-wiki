@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fitness & Health Wiki</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --paper:#f2f4f1;
+  --card:#fdfefd;
+  --ink:#1c2420;
+  --muted:#66716a;
+  --line:#d7ddd5;
+  --fitness:#d4502a;
+  --fitness-soft:#fbe9e2;
+  --health:#1e7a66;
+  --health-soft:#e2f1ec;
+  --accent:var(--health);
+  --accent-soft:var(--health-soft);
+  --danger:#b3362a;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Manrope',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  font-size:15px;
+  line-height:1.55;
+}
+body[data-section="fitness"]{--accent:var(--fitness);--accent-soft:var(--fitness-soft)}
+body[data-section="health"]{--accent:var(--health);--accent-soft:var(--health-soft)}
+
+h1,h2,h3,h4{line-height:1.25}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:inherit;color:var(--ink)}
+a{color:var(--accent)}
+
+/* ── Buttons ─────────────────────────── */
+.btn{
+  border:1px solid var(--line);background:var(--card);color:var(--ink);
+  padding:7px 14px;border-radius:var(--radius);font-weight:600;
+  transition:border-color .15s, background .15s;
+}
+.btn:hover{border-color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn-ghost:hover{color:var(--accent)}
+.btn-danger{color:var(--danger)}
+.btn-danger:hover{border-color:var(--danger)}
+.btn-sm{padding:3px 9px;font-size:13px;border-radius:7px}
+.btn[disabled]{opacity:.5;cursor:default}
+
+input[type=text],input[type=email],input[type=password],input[type=url],textarea,select{
+  width:100%;border:1px solid var(--line);border-radius:var(--radius);
+  padding:9px 12px;background:var(--card);
+}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+textarea{resize:vertical;min-height:90px}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:12px 0 4px}
+
+/* ── Auth / config screens ───────────── */
+.gate{
+  min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.gate-card{
+  width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:32px 28px;
+}
+.gate-card h1{
+  font-family:'Unbounded',sans-serif;font-size:19px;font-weight:700;margin-bottom:4px;
+}
+.gate-card .sub{color:var(--muted);font-size:13px;margin-bottom:8px}
+.gate-card .btn-primary{width:100%;margin-top:18px;padding:11px}
+.gate-note{font-size:12.5px;color:var(--muted);margin-top:14px}
+
+/* ── App shell ───────────────────────── */
+#screen-app{display:flex;flex-direction:column;min-height:100vh}
+header{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:14px 22px;background:var(--card);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20;
+}
+.logo{
+  font-family:'Unbounded',sans-serif;font-weight:700;font-size:15px;letter-spacing:.02em;
+}
+.logo span{color:var(--accent)}
+.tabs{display:flex;gap:6px}
+.tab{
+  font-family:'Unbounded',sans-serif;font-size:12.5px;font-weight:500;
+  padding:8px 16px;border-radius:999px;border:1px solid transparent;
+  background:transparent;color:var(--muted);
+}
+.tab.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.spacer{flex:1}
+.hbtns{display:flex;gap:8px;align-items:center}
+
+.layout{display:flex;flex:1;min-height:0}
+aside{
+  width:230px;flex-shrink:0;padding:20px 14px;border-right:1px solid var(--line);
+}
+aside .aside-title{
+  font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin:0 8px 8px;
+}
+.cat{
+  display:flex;align-items:center;gap:6px;width:100%;text-align:left;
+  padding:7px 10px;border-radius:8px;border:none;background:transparent;
+  color:var(--ink);font-weight:500;
+}
+.cat:hover{background:var(--accent-soft)}
+.cat.active{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.cat .count{margin-left:auto;font-size:12px;color:var(--muted);font-weight:500}
+.cat-add{margin-top:10px}
+
+main{flex:1;padding:26px 30px;max-width:880px;min-width:0}
+
+/* ── Article list ────────────────────── */
+.list-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.list-head h2{font-family:'Unbounded',sans-serif;font-size:17px;font-weight:700;margin-right:auto}
+.acard{
+  display:flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:var(--radius);padding:13px 16px;margin-bottom:10px;cursor:pointer;
+  transition:border-color .15s;
+}
+.acard:hover{border-color:var(--accent)}
+.acard .atitle{font-weight:700}
+.acard .ameta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.acard input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);flex-shrink:0}
+.badge{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;
+  padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:2px;
+}
+.badge-digest{background:var(--accent-soft);color:var(--accent)}
+.badge-stale{background:#fdf0d4;color:#8a6510}
+.empty{color:var(--muted);padding:36px 0;text-align:center}
+
+.digest-bar{
+  position:sticky;bottom:14px;display:flex;align-items:center;gap:12px;
+  background:var(--ink);color:#fff;border-radius:12px;padding:11px 16px;margin-top:18px;
+}
+.digest-bar .btn-primary{margin-left:auto}
+
+/* ── Article view ────────────────────── */
+.aview-head{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.aview-head h2{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;flex:1;min-width:200px}
+.aview-meta{font-size:13px;color:var(--muted);margin-bottom:20px}
+.block{margin-bottom:20px}
+.block h2{font-size:19px;margin:14px 0 6px}
+.block h3{font-size:16.5px;margin:12px 0 5px}
+.block h4{font-size:15px;margin:10px 0 4px}
+.block p{margin-bottom:9px}
+.block ul,.block ol{margin:0 0 10px 22px}
+.block li{margin-bottom:3px}
+
+/* meal plan */
+.mp-title,.ex-title{
+  font-family:'Unbounded',sans-serif;font-size:14px;font-weight:500;margin-bottom:10px;
+  color:var(--accent);
+}
+.mp-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.mp-day{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:13px 15px}
+.mp-day-label{
+  font-weight:800;font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:8px;
+}
+.mp-meal{padding:7px 0;border-top:1px dashed var(--line)}
+.mp-meal:first-of-type{border-top:none;padding-top:0}
+.mp-meal .mname{font-weight:700;font-size:14px}
+.mp-meal .mdesc{font-size:13.5px;color:var(--muted)}
+.kcal{
+  display:inline-block;font-size:11.5px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);border-radius:999px;padding:1px 8px;margin-left:6px;
+}
+
+/* exercise */
+.ex-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.ex-table th,.ex-table td{padding:9px 13px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+.ex-table th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--paper)}
+.ex-table tr:last-child td{border-bottom:none}
+.ex-table .exname{font-weight:700}
+
+/* sources box */
+.sources{
+  background:var(--card);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:20px;font-size:13.5px;
+}
+.sources b{display:block;margin-bottom:4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sources a{cursor:pointer;text-decoration:underline}
+
+/* ── Editor ──────────────────────────── */
+.eblock{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px;margin-bottom:12px;
+}
+.eblock-head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.eblock-type{
+  font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent);margin-right:auto;
+}
+.eblock textarea{font-family:ui-monospace,monospace;font-size:13px}
+.eblock .jsonerr{color:var(--danger);font-size:12.5px;margin-top:5px;display:none}
+.editor-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.addblock-row{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+
+/* ── Modal ───────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:rgba(20,28,24,.45);z-index:50;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal{
+  background:var(--card);border-radius:14px;padding:26px;width:100%;max-width:520px;
+  max-height:88vh;overflow:auto;
+}
+.modal h3{font-family:'Unbounded',sans-serif;font-size:16px;margin-bottom:6px}
+.modal .sub{color:var(--muted);font-size:13.5px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ── Toast / loading ─────────────────── */
+#toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;
+  font-size:14px;z-index:100;display:none;max-width:90vw;
+}
+.spin{
+  display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:-2px;margin-right:7px;
+}
+.spin-dark{border-color:rgba(0,0,0,.15);border-top-color:var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.hidden{display:none!important}
+
+/* ── Mobile ──────────────────────────── */
+@media (max-width:760px){
+  .layout{flex-direction:column}
+  aside{
+    width:100%;border-right:none;border-bottom:1px solid var(--line);
+    display:flex;gap:6px;overflow-x:auto;padding:10px 14px;align-items:center;
+  }
+  aside .aside-title{display:none}
+  .cat{width:auto;white-space:nowrap;border:1px solid var(--line);border-radius:999px}
+  .cat .count{margin-left:6px}
+  .cat-add{margin-top:0}
+  main{padding:18px 16px}
+  header{padding:10px 14px;gap:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body data-section="health">
+
+<!-- ════════ CONFIG SCREEN ════════ -->
+<div id="screen-config" class="gate hidden">
+  <div class="gate-card">
+    <h1>🌿 <span data-i18n="appTitle">Fitness & Health Wiki</span></h1>
+    <p class="sub" data-i18n="configSub">One-time setup. Keys are stored in this browser only.</p>
+    <label data-i18n="supabaseUrl">Supabase Project URL</label>
+    <input type="url" id="cfg-url" placeholder="https://xxxx.supabase.co">
+    <label data-i18n="anonKey">Supabase anon key</label>
+    <input type="text" id="cfg-key" placeholder="eyJhbGciOi...">
+    <button class="btn btn-primary" id="cfg-save" data-i18n="saveConfig">Save and continue</button>
+    <p class="gate-note" data-i18n="configNote">The Anthropic key is NOT entered here — it lives in the Edge Function secret on the server.</p>
+  </div>
+</div>
+
+<!-- ════════ LOGIN SCREEN ════════ -->
+<div id="screen-login" class="gate hidden">
+  <div class="gate-card">
+    <h1>🌿 <span data-i18n="appTitle">Fitness & Health Wiki</span></h1>
+    <p class="sub" data-i18n="loginSub">Sign in with your account.</p>
+    <label data-i18n="email">Email</label>
+    <input type="email" id="login-email" autocomplete="username">
+    <label data-i18n="password">Password</label>
+    <input type="password" id="login-pass" autocomplete="current-password">
+    <button class="btn btn-primary" id="login-btn" data-i18n="signIn">Sign in</button>
+    <p class="gate-note" data-i18n="loginNote">Account is created manually in Supabase → Authentication → Users.</p>
+    <p class="gate-note"><a id="login-reset" style="cursor:pointer" data-i18n="resetConfig">Change Supabase keys</a></p>
+  </div>
+</div>
+
+<!-- ════════ APP ════════ -->
+<div id="screen-app" class="hidden">
+  <header>
+    <div class="logo">🌿 FH<span>.wiki</span></div>
+    <nav class="tabs">
+      <button class="tab" id="tab-fitness" data-i18n="fitness">Fitness</button>
+      <button class="tab" id="tab-health" data-i18n="health">Health</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="hbtns">
+      <button class="btn btn-sm" id="lang-toggle">RU</button>
+      <button class="btn btn-ghost btn-sm" id="logout-btn" data-i18n="logout">Log out</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <p class="aside-title" data-i18n="categories">Categories</p>
+      <div id="cat-list"></div>
+      <button class="btn btn-ghost btn-sm cat-add" id="cat-add">+ <span data-i18n="addCategory">Add category</span></button>
+    </aside>
+
+    <main id="main"></main>
+  </div>
+</div>
+
+<!-- ════════ MODAL ROOT & TOAST ════════ -->
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+/* ══════════════════ i18n ══════════════════ */
+const T = {
+  en: {
+    appTitle:"Fitness & Health Wiki", configSub:"One-time setup. Keys are stored in this browser only.",
+    supabaseUrl:"Supabase Project URL", anonKey:"Supabase anon key", saveConfig:"Save and continue",
+    configNote:"The Anthropic key is NOT entered here — it lives in the Edge Function secret on the server.",
+    loginSub:"Sign in with your account.", email:"Email", password:"Password", signIn:"Sign in",
+    loginNote:"Account is created manually in Supabase → Authentication → Users.",
+    resetConfig:"Change Supabase keys", fitness:"Fitness", health:"Health", logout:"Log out",
+    categories:"Categories", addCategory:"Add category", allArticles:"All articles",
+    newArticle:"New article", aiGenerate:"Ask AI", createDigest:"Create digest",
+    emptyList:"No articles yet. Create one manually or ask AI.",
+    digestSelected:"selected", generateDigest:"Generate digest", cancel:"Cancel",
+    digest:"Digest", stale:"Sources changed", sources:"Built from", sourceDeleted:"(deleted)",
+    edit:"Edit", delete:"Delete", regenerate:"Regenerate", save:"Save", back:"← Back",
+    title:"Title", addText:"+ Text", addMeal:"+ Meal plan", addExercise:"+ Workout",
+    confirmDeleteArticle:"Delete this article?", confirmDeleteCat:"Delete category and ALL its articles?",
+    catName:"Category name", create:"Create", askTitle:"Ask AI",
+    askSub:"Describe what you want — a principle explained, a meal plan, a workout. Answer comes in your language.",
+    askPlaceholder:"e.g. 7-day high-protein meal plan around 2200 kcal, no fish",
+    generating:"Generating…", duplicateDigest:"A digest from exactly these articles already exists.",
+    openExisting:"Open it", regenInstead:"Regenerate it", invalidJson:"Invalid JSON",
+    updated:"Updated", generated:"Generated", loginFailed:"Sign-in failed: ",
+    aiFailed:"AI request failed: ", saved:"Saved", deleted:"Deleted",
+    moveUp:"↑", moveDown:"↓", removeBlock:"✕", selectForDigest:"Select articles to summarize, then press Generate.",
+    digestTitlePrefix:"Digest", category:"Category", noCats:"Create a category first."
+  },
+  ru: {
+    appTitle:"Фитнес и Здоровье Вики", configSub:"Разовая настройка. Ключи хранятся только в этом браузере.",
+    supabaseUrl:"Supabase Project URL", anonKey:"Supabase anon key", saveConfig:"Сохранить и продолжить",
+    configNote:"Ключ Anthropic сюда НЕ вводится — он хранится в секрете Edge Function на сервере.",
+    loginSub:"Войдите в аккаунт.", email:"Email", password:"Пароль", signIn:"Войти",
+    loginNote:"Аккаунт создаётся вручную в Supabase → Authentication → Users.",
+    resetConfig:"Изменить ключи Supabase", fitness:"Фитнес", health:"Здоровье", logout:"Выйти",
+    categories:"Категории", addCategory:"Категория", allArticles:"Все статьи",
+    newArticle:"Новая статья", aiGenerate:"Спросить ИИ", createDigest:"Создать дайджест",
+    emptyList:"Пока нет статей. Создайте вручную или спросите ИИ.",
+    digestSelected:"выбрано", generateDigest:"Создать дайджест", cancel:"Отмена",
+    digest:"Дайджест", stale:"Источники изменились", sources:"Собран из", sourceDeleted:"(удалена)",
+    edit:"Редактировать", delete:"Удалить", regenerate:"Перегенерировать", save:"Сохранить", back:"← Назад",
+    title:"Заголовок", addText:"+ Текст", addMeal:"+ План питания", addExercise:"+ Тренировка",
+    confirmDeleteArticle:"Удалить статью?", confirmDeleteCat:"Удалить категорию и ВСЕ её статьи?",
+    catName:"Название категории", create:"Создать", askTitle:"Спросить ИИ",
+    askSub:"Опишите, что нужно — принцип, план питания, тренировку. Ответ будет на вашем языке.",
+    askPlaceholder:"напр. план питания на 7 дней, ~2200 ккал, без рыбы",
+    generating:"Генерация…", duplicateDigest:"Дайджест из этих же статей уже существует.",
+    openExisting:"Открыть его", regenInstead:"Перегенерировать его", invalidJson:"Невалидный JSON",
+    updated:"Обновлено", generated:"Сгенерировано", loginFailed:"Ошибка входа: ",
+    aiFailed:"Ошибка ИИ: ", saved:"Сохранено", deleted:"Удалено",
+    moveUp:"↑", moveDown:"↓", removeBlock:"✕", selectForDigest:"Отметьте статьи для сводки и нажмите «Создать дайджест».",
+    digestTitlePrefix:"Дайджест", category:"Категория", noCats:"Сначала создайте категорию."
+  }
+};
+let lang = localStorage.getItem('fh_lang') || 'en';
+const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.getElementById('lang-toggle').textContent = lang === 'en' ? 'RU' : 'EN';
+  document.documentElement.lang = lang;
+}
+
+/* ══════════════════ state ══════════════════ */
+const LS = { url:'fh_supabase_url', key:'fh_supabase_key' };
+let db = null;           // supabase client (avoid global name clash)
+let session = null;
+const S = {
+  section: localStorage.getItem('fh_section') || 'health',
+  cats: [],              // categories of current section
+  catId: 'all',          // 'all' or uuid
+  articles: [],          // articles of current section (with category info)
+  view: 'list',          // list | article | edit
+  article: null, blocks: [],
+  digestMode: false, selected: new Set()
+};
+
+/* ══════════════════ helpers ══════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, ms=2600){
+  const el = $('toast'); el.textContent = msg; el.style.display = 'block';
+  clearTimeout(el._t); el._t = setTimeout(()=> el.style.display='none', ms);
+}
+function fmtDate(d){
+  if(!d) return '';
+  return new Date(d).toLocaleString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function md(src){
+  let h = esc(src);
+  h = h.replace(/^### (.*)$/gm,'<h4>$1</h4>')
+       .replace(/^## (.*)$/gm,'<h3>$1</h3>')
+       .replace(/^# (.*)$/gm,'<h2>$1</h2>');
+  h = h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>');
+  h = h.replace(/(^|\n)((?:[-*] .*(?:\n|$))+)/g, (m,p,list)=>
+    p+'<ul>'+list.trim().split('\n').map(li=>'<li>'+li.replace(/^[-*] /,'')+'</li>').join('')+'</ul>');
+  h = h.replace(/(^|\n)((?:\d+\. .*(?:\n|$))+)/g, (m,p,list)=>
+    p+'<ol>'+list.trim().split('\n').map(li=>'<li>'+li.replace(/^\d+\. /,'')+'</li>').join('')+'</ol>');
+  return h.split(/\n{2,}/).map(p=> /^<(h\d|ul|ol)/.test(p) ? p : '<p>'+p.replace(/\n/g,'<br>')+'</p>').join('')
+    .replace(/<br>(<ul>|<ol>)/g,'</p>$1').replace(/(<\/ul>|<\/ol>)<br>/g,'$1<p>');
+}
+
+/* ══════════════════ boot ══════════════════ */
+async function boot(){
+  applyI18n();
+  const url = localStorage.getItem(LS.url), key = localStorage.getItem(LS.key);
+  if(!url || !key){ show('config'); return; }
+  db = window.supabase.createClient(url, key);
+  const { data } = await db.auth.getSession();
+  session = data.session;
+  db.auth.onAuthStateChange((_e, s) => { session = s; });
+  if(!session){ show('login'); return; }
+  await enterApp();
+}
+function show(name){
+  ['config','login','app'].forEach(n => $('screen-'+n).classList.toggle('hidden', n!==name));
+}
+async function enterApp(){
+  show('app');
+  document.body.dataset.section = S.section;
+  $('tab-fitness').classList.toggle('active', S.section==='fitness');
+  $('tab-health').classList.toggle('active', S.section==='health');
+  await loadSection();
+}
+
+/* ══════════════════ data layer ══════════════════ */
+async function loadSection(){
+  const { data: cats, error: e1 } = await db.from('fh_categories')
+    .select('*').eq('section', S.section).order('sort_order').order('created_at');
+  if(e1){ toast(e1.message); return; }
+  S.cats = cats || [];
+  if(S.catId !== 'all' && !S.cats.find(c=>c.id===S.catId)) S.catId = 'all';
+  const ids = S.cats.map(c=>c.id);
+  if(ids.length){
+    const { data: arts, error: e2 } = await db.from('fh_articles')
+      .select('*').in('category_id', ids).order('updated_at', { ascending:false });
+    if(e2){ toast(e2.message); return; }
+    S.articles = arts || [];
+  } else S.articles = [];
+  renderCats(); renderMain();
+}
+async function loadBlocks(articleId){
+  const { data, error } = await db.from('fh_blocks')
+    .select('*').eq('article_id', articleId).order('sort_order');
+  if(error){ toast(error.message); return []; }
+  return data || [];
+}
+async function touchArticle(id){
+  await db.from('fh_articles').update({ updated_at: new Date().toISOString() }).eq('id', id);
+}
+
+/* ══════════════════ rendering: sidebar & list ══════════════════ */
+function renderCats(){
+  const box = $('cat-list'); box.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'cat' + (S.catId==='all' ? ' active' : '');
+  all.innerHTML = `<span>${t('allArticles')}</span><span class="count">${S.articles.length}</span>`;
+  all.onclick = () => { S.catId='all'; S.view='list'; exitDigestMode(); renderCats(); renderMain(); };
+  box.appendChild(all);
+  for(const c of S.cats){
+    const n = S.articles.filter(a=>a.category_id===c.id).length;
+    const b = document.createElement('button');
+    b.className = 'cat' + (S.catId===c.id ? ' active' : '');
+    b.innerHTML = `<span>${esc(c.name)}</span><span class="count">${n}</span>`;
+    b.onclick = () => { S.catId=c.id; S.view='list'; exitDigestMode(); renderCats(); renderMain(); };
+    b.oncontextmenu = ev => { ev.preventDefault(); deleteCategory(c); };
+    box.appendChild(b);
+  }
+}
+async function deleteCategory(c){
+  if(!confirm(`${t('confirmDeleteCat')} (${c.name})`)) return;
+  const { error } = await db.from('fh_categories').delete().eq('id', c.id);
+  if(error){ toast(error.message); return; }
+  toast(t('deleted')); await loadSection();
+}
+function visibleArticles(){
+  return S.catId==='all' ? S.articles : S.articles.filter(a=>a.category_id===S.catId);
+}
+function isStale(a){
+  if(!a.is_digest || !a.generated_at) return false;
+  const gen = new Date(a.generated_at).getTime();
+  return (a.source_article_ids||[]).some(id=>{
+    const src = S.articles.find(x=>x.id===id);
+    return src && new Date(src.updated_at).getTime() > gen + 1500;
+  });
+}
+function renderMain(){
+  if(S.view==='article') return renderArticle();
+  if(S.view==='edit') return renderEditor();
+  const m = $('main');
+  const arts = visibleArticles();
+  let html = `<div class="list-head">
+    <h2>${S.catId==='all' ? t('allArticles') : esc(S.cats.find(c=>c.id===S.catId)?.name||'')}</h2>
+    <button class="btn" id="b-digest">${t('createDigest')}</button>
+    <button class="btn" id="b-new">${t('newArticle')}</button>
+    <button class="btn btn-primary" id="b-ai">✦ ${t('aiGenerate')}</button>
+  </div>`;
+  if(S.digestMode) html += `<p style="color:var(--muted);margin-bottom:12px">${t('selectForDigest')}</p>`;
+  if(!arts.length) html += `<p class="empty">${t('emptyList')}</p>`;
+  for(const a of arts){
+    const cat = S.cats.find(c=>c.id===a.category_id);
+    html += `<div class="acard" data-id="${a.id}">
+      ${S.digestMode && !a.is_digest ? `<input type="checkbox" data-sel="${a.id}" ${S.selected.has(a.id)?'checked':''}>` : ''}
+      <div style="min-width:0">
+        <div class="atitle">${esc(a.title)}
+          ${a.is_digest ? `<span class="badge badge-digest">${t('digest')}</span>` : ''}
+          ${isStale(a) ? `<span class="badge badge-stale">${t('stale')}</span>` : ''}
+        </div>
+        <div class="ameta">${esc(cat?.name||'')} · ${t('updated')}: ${fmtDate(a.updated_at)}</div>
+      </div>
+    </div>`;
+  }
+  if(S.digestMode){
+    html += `<div class="digest-bar">
+      <span><b id="sel-count">${S.selected.size}</b> ${t('digestSelected')}</span>
+      <button class="btn btn-sm" id="b-digest-cancel" style="color:#fff;border-color:#555;background:transparent">${t('cancel')}</button>
+      <button class="btn btn-primary btn-sm" id="b-digest-go" ${S.selected.size<2?'disabled':''}>${t('generateDigest')}</button>
+    </div>`;
+  }
+  m.innerHTML = html;
+  $('b-new').onclick = () => openNewArticleModal(false);
+  $('b-ai').onclick = () => openNewArticleModal(true);
+  $('b-digest').onclick = () => { S.digestMode = true; S.selected.clear(); renderMain(); };
+  if(S.digestMode){
+    $('b-digest-cancel').onclick = exitDigestMode;
+    $('b-digest-go').onclick = startDigest;
+  }
+  m.querySelectorAll('.acard').forEach(card=>{
+    card.onclick = ev => {
+      const id = card.dataset.id;
+      if(S.digestMode){
+        const a = S.articles.find(x=>x.id===id);
+        if(a?.is_digest) return;
+        S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
+        renderMain(); return;
+      }
+      openArticle(id);
+    };
+  });
+}
+function exitDigestMode(){ S.digestMode=false; S.selected.clear(); if(S.view==='list') renderMain(); }
+
+/* ══════════════════ block renderers ══════════════════ */
+function renderBlock(b){
+  const c = b.content || {};
+  if(b.type==='meal_plan'){
+    let h = `<div class="block">`;
+    if(c.title) h += `<div class="mp-title">${esc(c.title)}</div>`;
+    h += `<div class="mp-days">`;
+    for(const d of c.days||[]){
+      h += `<div class="mp-day"><div class="mp-day-label">${esc(d.label)}</div>`;
+      for(const meal of d.meals||[]){
+        h += `<div class="mp-meal"><span class="mname">${esc(meal.name)}</span>${meal.kcal?`<span class="kcal">${esc(meal.kcal)} kcal</span>`:''}
+              <div class="mdesc">${esc(meal.description||'')}</div></div>`;
+      }
+      h += `</div>`;
+    }
+    return h + `</div></div>`;
+  }
+  if(b.type==='exercise'){
+    let h = `<div class="block">`;
+    if(c.title) h += `<div class="ex-title">${esc(c.title)}</div>`;
+    h += `<table class="ex-table"><thead><tr><th></th><th>Sets × Reps</th><th>Rest</th><th></th></tr></thead><tbody>`;
+    for(const e of c.exercises||[]){
+      h += `<tr><td class="exname">${esc(e.name)}</td><td>${esc(e.sets??'')} × ${esc(e.reps??'')}</td>
+            <td>${esc(e.rest||'—')}</td><td style="color:var(--muted);font-size:13px">${esc(e.note||'')}</td></tr>`;
+    }
+    return h + `</tbody></table></div>`;
+  }
+  return `<div class="block">${md(c.text||'')}</div>`;
+}
+
+/* ══════════════════ article view ══════════════════ */
+async function openArticle(id){
+  const a = S.articles.find(x=>x.id===id); if(!a) return;
+  S.article = a; S.blocks = await loadBlocks(id); S.view='article'; renderMain();
+}
+function renderArticle(){
+  const a = S.article, m = $('main');
+  let html = `<button class="btn btn-ghost btn-sm" id="b-back">${t('back')}</button>
+  <div class="aview-head" style="margin-top:10px">
+    <h2>${esc(a.title)}
+      ${a.is_digest?`<span class="badge badge-digest">${t('digest')}</span>`:''}
+      ${isStale(a)?`<span class="badge badge-stale">${t('stale')}</span>`:''}
+    </h2>
+    ${a.is_digest?`<button class="btn" id="b-regen">↻ ${t('regenerate')}</button>`:''}
+    <button class="btn" id="b-edit">${t('edit')}</button>
+    <button class="btn btn-danger" id="b-del">${t('delete')}</button>
+  </div>
+  <p class="aview-meta">${t('updated')}: ${fmtDate(a.updated_at)}${a.generated_at?` · ${t('generated')}: ${fmtDate(a.generated_at)}`:''}</p>`;
+  if(a.is_digest && (a.source_article_ids||[]).length){
+    html += `<div class="sources"><b>${t('sources')}</b>`;
+    html += a.source_article_ids.map(id=>{
+      const src = S.articles.find(x=>x.id===id);
+      return src ? `<a data-open="${id}">${esc(src.title)}</a>` : `<span style="color:var(--muted)">${t('sourceDeleted')}</span>`;
+    }).join(' · ');
+    html += `</div>`;
+  }
+  html += S.blocks.map(renderBlock).join('');
+  m.innerHTML = html;
+  $('b-back').onclick = ()=>{ S.view='list'; renderMain(); };
+  $('b-edit').onclick = ()=>{ S.view='edit'; renderMain(); };
+  $('b-del').onclick = deleteArticle;
+  if($('b-regen')) $('b-regen').onclick = ()=> regenerateDigest(a);
+  m.querySelectorAll('[data-open]').forEach(el=> el.onclick = ()=> openArticle(el.dataset.open));
+}
+async function deleteArticle(){
+  if(!confirm(t('confirmDeleteArticle'))) return;
+  const { error } = await db.from('fh_articles').delete().eq('id', S.article.id);
+  if(error){ toast(error.message); return; }
+  toast(t('deleted')); S.view='list'; await loadSection();
+}
+
+/* ══════════════════ editor ══════════════════ */
+let editBlocks = [];
+function renderEditor(){
+  const a = S.article, m = $('main');
+  editBlocks = S.blocks.map(b => ({ type:b.type, content: JSON.parse(JSON.stringify(b.content||{})) }));
+  if(!editBlocks.length) editBlocks.push({ type:'text', content:{ text:'' } });
+  m.innerHTML = `<button class="btn btn-ghost btn-sm" id="b-back">${t('back')}</button>
+    <label>${t('title')}</label>
+    <input type="text" id="e-title" value="${esc(a.title)}">
+    <div id="e-blocks" style="margin-top:16px"></div>
+    <div class="addblock-row">
+      <button class="btn btn-sm" data-add="text">${t('addText')}</button>
+      <button class="btn btn-sm" data-add="meal_plan">${t('addMeal')}</button>
+      <button class="btn btn-sm" data-add="exercise">${t('addExercise')}</button>
+    </div>
+    <div class="editor-actions">
+      <button class="btn btn-primary" id="e-save">${t('save')}</button>
+      <button class="btn" id="e-cancel">${t('cancel')}</button>
+    </div>`;
+  drawEditBlocks();
+  $('b-back').onclick = $('e-cancel').onclick = ()=>{ S.view='article'; renderMain(); };
+  m.querySelectorAll('[data-add]').forEach(b=> b.onclick = ()=>{
+    const type = b.dataset.add;
+    editBlocks.push({ type, content: type==='text'?{text:''}:
+      type==='meal_plan'?{title:'',days:[{label:'Day 1',meals:[{name:'',description:'',kcal:null}]}]}:
+      {title:'',exercises:[{name:'',sets:3,reps:'10',rest:'90s',note:''}]} });
+    drawEditBlocks();
+  });
+  $('e-save').onclick = saveEdits;
+}
+function drawEditBlocks(){
+  const box = $('e-blocks'); box.innerHTML = '';
+  editBlocks.forEach((b,i)=>{
+    const div = document.createElement('div'); div.className = 'eblock';
+    const isText = b.type==='text';
+    div.innerHTML = `<div class="eblock-head">
+        <span class="eblock-type">${b.type.replace('_',' ')}</span>
+        <button class="btn btn-ghost btn-sm" data-up>${t('moveUp')}</button>
+        <button class="btn btn-ghost btn-sm" data-down>${t('moveDown')}</button>
+        <button class="btn btn-ghost btn-sm btn-danger" data-rm>${t('removeBlock')}</button>
+      </div>
+      <textarea rows="${isText?7:10}"></textarea>
+      <p class="jsonerr">${t('invalidJson')}</p>`;
+    const ta = div.querySelector('textarea');
+    ta.value = isText ? (b.content.text||'') : JSON.stringify(b.content, null, 2);
+    ta.oninput = ()=>{
+      if(isText){ b.content.text = ta.value; return; }
+      try { b.content = JSON.parse(ta.value); div.querySelector('.jsonerr').style.display='none'; }
+      catch { div.querySelector('.jsonerr').style.display='block'; }
+    };
+    div.querySelector('[data-up]').onclick = ()=>{ if(i>0){ [editBlocks[i-1],editBlocks[i]]=[editBlocks[i],editBlocks[i-1]]; drawEditBlocks(); } };
+    div.querySelector('[data-down]').onclick = ()=>{ if(i<editBlocks.length-1){ [editBlocks[i+1],editBlocks[i]]=[editBlocks[i],editBlocks[i+1]]; drawEditBlocks(); } };
+    div.querySelector('[data-rm]').onclick = ()=>{ editBlocks.splice(i,1); drawEditBlocks(); };
+    box.appendChild(div);
+  });
+}
+async function saveEdits(){
+  const title = $('e-title').value.trim();
+  if(!title){ toast(t('title')+'?'); return; }
+  const id = S.article.id;
+  const { error: e1 } = await db.from('fh_articles')
+    .update({ title, updated_at: new Date().toISOString() }).eq('id', id);
+  if(e1){ toast(e1.message); return; }
+  await db.from('fh_blocks').delete().eq('article_id', id);
+  const rows = editBlocks.map((b,i)=>({ article_id:id, type:b.type, content:b.content, sort_order:i }));
+  if(rows.length){
+    const { error: e2 } = await db.from('fh_blocks').insert(rows);
+    if(e2){ toast(e2.message); return; }
+  }
+  toast(t('saved'));
+  await loadSection();
+  await openArticle(id);
+}
+
+/* ══════════════════ modals ══════════════════ */
+function modal(html){
+  const root = $('modal-root');
+  root.innerHTML = `<div class="overlay"><div class="modal">${html}</div></div>`;
+  root.querySelector('.overlay').onclick = ev => { if(ev.target.classList.contains('overlay')) closeModal(); };
+  return root.querySelector('.modal');
+}
+function closeModal(){ $('modal-root').innerHTML = ''; }
+
+function catOptions(selectedId){
+  return S.cats.map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${esc(c.name)}</option>`).join('');
+}
+function openNewArticleModal(ai){
+  if(!S.cats.length){ toast(t('noCats')); return; }
+  const defCat = S.catId!=='all' ? S.catId : S.cats[0].id;
+  const m = modal(`<h3>${ai?'✦ '+t('askTitle'):t('newArticle')}</h3>
+    ${ai?`<p class="sub">${t('askSub')}</p>`:''}
+    <label>${t('category')}</label>
+    <select id="m-cat">${catOptions(defCat)}</select>
+    ${ai
+      ? `<label>${t('askTitle')}</label><textarea id="m-prompt" rows="4" placeholder="${esc(t('askPlaceholder'))}"></textarea>`
+      : `<label>${t('title')}</label><input type="text" id="m-title">`}
+    <div class="modal-actions">
+      <button class="btn" id="m-cancel">${t('cancel')}</button>
+      <button class="btn btn-primary" id="m-go">${ai?t('aiGenerate'):t('create')}</button>
+    </div>`);
+  m.querySelector('#m-cancel').onclick = closeModal;
+  m.querySelector('#m-go').onclick = async ()=>{
+    const catId = m.querySelector('#m-cat').value;
+    if(ai){
+      const prompt = m.querySelector('#m-prompt').value.trim();
+      if(!prompt) return;
+      await generateArticle(prompt, catId, m.querySelector('#m-go'));
+    } else {
+      const title = m.querySelector('#m-title').value.trim();
+      if(!title) return;
+      const { data, error } = await db.from('fh_articles')
+        .insert({ category_id: catId, title }).select().single();
+      if(error){ toast(error.message); return; }
+      closeModal(); await loadSection(); await openArticle(data.id);
+      S.view='edit'; renderMain();
+    }
+  };
+}
+$('cat-add').onclick = ()=>{
+  const m = modal(`<h3>${t('addCategory')}</h3>
+    <label>${t('catName')}</label><input type="text" id="m-name">
+    <div class="modal-actions">
+      <button class="btn" id="m-cancel">${t('cancel')}</button>
+      <button class="btn btn-primary" id="m-go">${t('create')}</button>
+    </div>`);
+  m.querySelector('#m-cancel').onclick = closeModal;
+  m.querySelector('#m-go').onclick = async ()=>{
+    const name = m.querySelector('#m-name').value.trim(); if(!name) return;
+    const { error } = await db.from('fh_categories').insert({ section:S.section, name });
+    if(error){ toast(error.message); return; }
+    closeModal(); await loadSection();
+  };
+};
+
+/* ══════════════════ AI via Edge Function ══════════════════ */
+async function callClaude(prompt, maxTokens=3500){
+  const url = localStorage.getItem(LS.url).replace(/\/$/,'') + '/functions/v1/anthropic-proxy';
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':'Bearer ' + session.access_token,
+      'apikey': localStorage.getItem(LS.key)
+    },
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:maxTokens,
+      messages:[{ role:'user', content:prompt }]
+    })
+  });
+  const raw = await res.text();
+  if(!res.ok) throw new Error(raw.slice(0,300));
+  const data = JSON.parse(raw);
+  if(data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  const text = (data.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+const SCHEMA_SPEC = `Respond ONLY with raw JSON, no markdown fences, no preamble. Schema:
+{
+ "title": "short title",
+ "blocks": [
+   {"type":"text","content":{"text":"markdown text (## headings, **bold**, - lists)"}},
+   {"type":"meal_plan","content":{"title":"optional","days":[{"label":"Day 1","meals":[{"name":"Breakfast","description":"what exactly","kcal":450}]}]}},
+   {"type":"exercise","content":{"title":"optional","exercises":[{"name":"Squat","sets":4,"reps":"8-10","rest":"2 min","note":"optional"}]}}
+ ]
+}
+Use meal_plan blocks for meal plans, exercise blocks for workout routines, text blocks for principles/explanations. Mix types when useful. Respond in the SAME LANGUAGE as the request.`;
+
+function busy(btn, on){
+  if(!btn) return;
+  if(on){ btn.dataset.txt = btn.textContent; btn.disabled = true; btn.innerHTML = `<span class="spin"></span>${t('generating')}`; }
+  else { btn.disabled = false; btn.textContent = btn.dataset.txt; }
+}
+async function generateArticle(prompt, catId, btn){
+  busy(btn, true);
+  try{
+    const out = await callClaude(`You are generating an article for a personal fitness & health wiki.\n${SCHEMA_SPEC}\n\nRequest: ${prompt}`);
+    const { data: art, error } = await db.from('fh_articles')
+      .insert({ category_id: catId, title: out.title || prompt.slice(0,60) }).select().single();
+    if(error) throw new Error(error.message);
+    const rows = (out.blocks||[]).map((b,i)=>({ article_id:art.id, type:b.type, content:b.content, sort_order:i }));
+    if(rows.length) await db.from('fh_blocks').insert(rows);
+    closeModal(); await loadSection(); await openArticle(art.id);
+  }catch(err){ toast(t('aiFailed') + err.message, 5000); busy(btn, false); }
+}
+
+/* ══════════════════ digests ══════════════════ */
+function sameSet(a, b){
+  if(a.length !== b.length) return false;
+  const x = [...a].sort().join(','), y = [...b].sort().join(',');
+  return x === y;
+}
+async function startDigest(){
+  const ids = [...S.selected];
+  const dup = S.articles.find(a => a.is_digest && sameSet(a.source_article_ids||[], ids));
+  if(dup){
+    const m = modal(`<h3>${t('digest')}</h3><p class="sub">${t('duplicateDigest')}</p>
+      <div class="modal-actions">
+        <button class="btn" id="m-open">${t('openExisting')}</button>
+        <button class="btn btn-primary" id="m-regen">${t('regenInstead')}</button>
+      </div>`);
+    m.querySelector('#m-open').onclick = async ()=>{ closeModal(); exitDigestMode(); await openArticle(dup.id); };
+    m.querySelector('#m-regen').onclick = async ()=>{ closeModal(); exitDigestMode(); await openArticle(dup.id); await regenerateDigest(dup); };
+    return;
+  }
+  const btn = $('b-digest-go');
+  busy(btn, true);
+  try{
+    const out = await runDigestAI(ids);
+    const catId = S.articles.find(a=>a.id===ids[0]).category_id;
+    const now = new Date().toISOString();
+    const { data: art, error } = await db.from('fh_articles').insert({
+      category_id: catId, title: out.title || t('digestTitlePrefix'),
+      is_digest: true, source_article_ids: ids, generated_at: now
+    }).select().single();
+    if(error) throw new Error(error.message);
+    const rows = (out.blocks||[]).map((b,i)=>({ article_id:art.id, type:b.type, content:b.content, sort_order:i }));
+    if(rows.length) await db.from('fh_blocks').insert(rows);
+    exitDigestMode(); await loadSection(); await openArticle(art.id);
+  }catch(err){ toast(t('aiFailed') + err.message, 5000); busy(btn, false); }
+}
+async function regenerateDigest(a){
+  const btn = $('b-regen'); busy(btn, true);
+  try{
+    const ids = (a.source_article_ids||[]).filter(id => S.articles.find(x=>x.id===id));
+    if(!ids.length) throw new Error('no sources left');
+    const out = await runDigestAI(ids);
+    const now = new Date().toISOString();
+    const { error } = await db.from('fh_articles').update({
+      title: out.title || a.title, generated_at: now, updated_at: now
+    }).eq('id', a.id);
+    if(error) throw new Error(error.message);
+    await db.from('fh_blocks').delete().eq('article_id', a.id);
+    const rows = (out.blocks||[]).map((b,i)=>({ article_id:a.id, type:b.type, content:b.content, sort_order:i }));
+    if(rows.length) await db.from('fh_blocks').insert(rows);
+    await loadSection(); await openArticle(a.id);
+  }catch(err){ toast(t('aiFailed') + err.message, 5000); busy(btn, false); }
+}
+function blockToPlain(b){
+  const c = b.content || {};
+  if(b.type==='text') return c.text || '';
+  return (c.title?c.title+'\n':'') + JSON.stringify(c);
+}
+async function runDigestAI(ids){
+  const parts = [];
+  for(const id of ids){
+    const a = S.articles.find(x=>x.id===id);
+    const blocks = await loadBlocks(id);
+    parts.push(`### ${a.title}\n` + blocks.map(blockToPlain).join('\n'));
+  }
+  return callClaude(
+`You are summarizing several articles from a personal fitness & health wiki into ONE digest page with only the most important, actionable points. Be concise. Use the SAME LANGUAGE as the source articles.
+${SCHEMA_SPEC}
+Prefer text blocks for the digest unless a compact meal_plan/exercise block clearly helps.
+
+ARTICLES:
+${parts.join('\n\n---\n\n')}`, 4000);
+}
+
+/* ══════════════════ events: gates, header ══════════════════ */
+$('cfg-save').onclick = ()=>{
+  const url = $('cfg-url').value.trim(), key = $('cfg-key').value.trim();
+  if(!url || !key) return;
+  localStorage.setItem(LS.url, url); localStorage.setItem(LS.key, key);
+  location.reload();
+};
+$('login-btn').onclick = async ()=>{
+  const { data, error } = await db.auth.signInWithPassword({
+    email: $('login-email').value.trim(), password: $('login-pass').value
+  });
+  if(error){ toast(t('loginFailed') + error.message, 4500); return; }
+  session = data.session; await enterApp();
+};
+$('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('login-btn').click(); });
+$('login-reset').onclick = ()=>{
+  localStorage.removeItem(LS.url); localStorage.removeItem(LS.key); location.reload();
+};
+$('logout-btn').onclick = async ()=>{ await db.auth.signOut(); location.reload(); };
+$('tab-fitness').onclick = ()=> switchSection('fitness');
+$('tab-health').onclick = ()=> switchSection('health');
+async function switchSection(sec){
+  if(S.section===sec) return;
+  S.section = sec; S.catId = 'all'; S.view='list'; exitDigestMode();
+  localStorage.setItem('fh_section', sec);
+  await enterApp();
+}
+$('lang-toggle').onclick = ()=>{
+  lang = lang==='en' ? 'ru' : 'en';
+  localStorage.setItem('fh_lang', lang);
+  applyI18n();
+  if(!$('screen-app').classList.contains('hidden')) renderMain();
+};
+
+boot();
+</script>
+</body>
+</html>
