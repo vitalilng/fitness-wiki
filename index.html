@@ -767,7 +767,7 @@ $('cat-add').onclick = ()=>{
 
 /* ══════════════════ AI via Edge Function ══════════════════ */
 async function callClaude(prompt, maxTokens=3500){
-  const url = localStorage.getItem(LS.url).replace(/\/$/,'') + '/functions/v1/anthropic-proxy';
+  const url = localStorage.getItem(LS.url).replace(/\/$/,'') + '/functions/v1/smart-service';
   const res = await fetch(url, {
     method:'POST',
     headers:{
